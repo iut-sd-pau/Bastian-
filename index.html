@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Color Party — Invitation</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<main class="page" id="page">
+
+  <!-- ===== État: code manquant / invalide ===== -->
+  <section id="state-invalid" class="hidden">
+    <div class="card center">
+      <span class="eyebrow">Lien invalide</span>
+      <h1 style="font-size:26px;margin-top:10px;">Ce lien ne correspond à aucune invitation</h1>
+      <p class="muted">Utilise le lien personnel qui t'a été envoyé pour cette soirée (il contient un code après <code>?c=</code>). En cas de doute, contacte l'organisateur·rice.</p>
+    </div>
+  </section>
+
+  <!-- ===== État: invité pas encore ajouté côté organisateur ===== -->
+  <section id="state-pending" class="hidden">
+    <div class="card center">
+      <span class="eyebrow">Presque</span>
+      <h1 style="font-size:26px;margin-top:10px;">Ton invitation n'est pas encore prête</h1>
+      <p class="muted">Vérifie le lien reçu, ou redemande-le à l'organisateur·rice si tu viens d'être ajouté·e — ça se met à jour automatiquement.</p>
+    </div>
+  </section>
+
+  <!-- ===== Firebase non configuré ===== -->
+  <section id="state-unconfigured" class="hidden">
+    <div class="card card--warning center">
+      <span class="eyebrow">Configuration requise</span>
+      <h1 style="font-size:24px;margin-top:10px;">Le site n'est pas encore connecté</h1>
+      <p class="muted">L'organisateur·rice doit terminer la configuration (5 min) avant que les invitations fonctionnent.</p>
+    </div>
+  </section>
+
+  <!-- ===== État: invitation valide ===== -->
+  <section id="state-invite" class="hidden">
+
+    <div class="vinyl-wrap"><div class="vinyl"></div></div>
+
+    <header class="center" style="margin-bottom:2px;">
+      <span class="eyebrow">Tu es sur la liste</span>
+      <h1 class="title-xl" id="event-title">COLOR PARTY</h1>
+      <p class="subtitle-script script" id="host-line"></p>
+    </header>
+
+    <div class="card">
+      <p style="margin:0 0 4px;">Salut <strong id="guest-name"></strong>.</p>
+      <p class="muted" style="margin:0 0 4px;">Voici ce qu'il faut savoir.</p>
+
+      <div class="info-grid">
+        <div class="info-item"><div class="label">Date</div><div class="value" data-event="date">—</div></div>
+        <div class="info-item" id="item-time" data-hide-if-empty><div class="label">Heure</div><div class="value" data-event="time">—</div></div>
+        <div class="info-item" id="item-address" data-hide-if-empty><div class="label">Lieu</div><div class="value" data-event="address">—</div></div>
+        <div class="info-item" id="item-addressnote" data-hide-if-empty><div class="label">Précisions</div><div class="value" data-event="addressNote">—</div></div>
+      </div>
+
+      <div class="info-item" style="margin-top:12px;">
+        <div class="label">Dress code</div>
+        <div class="value" style="font-weight:400;" data-event="dressCode">—</div>
+      </div>
+
+      <div class="info-item" id="item-extra" data-hide-if-empty style="margin-top:12px;">
+        <div class="label">À savoir</div>
+        <div class="value" style="font-weight:400;" data-event="extraInfo">—</div>
+      </div>
+
+      <p class="muted" style="margin-top:14px;" data-event="rsvpNote"></p>
+    </div>
+
+    <!-- ===== Couleur / équipe, affichée directement ===== -->
+    <div class="reveal-card" id="reveal-card">
+      <span class="eyebrow">Ton équipe</span>
+      <h2 class="reveal-title" id="reveal-color-name" style="margin-top:4px;">—</h2>
+
+      <ul class="group-list" id="my-team-list"></ul>
+
+      <button class="btn btn--ghost" id="toggle-groups-btn" style="margin-top:20px;">Voir la composition de toutes les équipes</button>
+
+      <div class="hidden" id="all-groups" style="margin-top:16px;">
+        <div class="groups-grid" id="groups-grid"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <p class="footer-note">Une soirée, sept couleurs.</p>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

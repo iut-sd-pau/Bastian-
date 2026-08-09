@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Color Party — Espace organisateur</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<main class="page page--wide" id="page">
+
+  <!-- ===== Accès refusé ===== -->
+  <section id="state-denied" class="hidden">
+    <div class="card center">
+      <span class="eyebrow">Accès réservé</span>
+      <h1 style="font-size:24px;margin-top:10px;">Cette page est réservée à l'organisateur·rice</h1>
+      <p class="muted">Si c'est bien toi qui fêtes ton anniversaire, utilise ton lien personnel — pas celui envoyé aux invités.</p>
+    </div>
+  </section>
+
+  <!-- ===== Firebase non configuré ===== -->
+  <section id="state-unconfigured" class="hidden">
+    <div class="card card--warning">
+      <span class="eyebrow">Dernière étape avant de commencer</span>
+      <h1 style="font-size:24px;margin-top:10px;">Connecte le site à une base de données (gratuit, 5 min)</h1>
+      <p class="muted">Ce site attribue les groupes en direct et garde tout synchronisé entre toi et tes invités — ça nécessite une base partagée. Sans ça, impossible d'ajouter des invités qui apparaîtront chez eux.</p>
+      <ol class="muted" style="padding-left:20px;">
+        <li>Va sur <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>, crée un projet gratuit.</li>
+        <li>Icône <code>&lt;/&gt;</code> "Ajouter une application Web", copie l'objet <code>firebaseConfig</code>.</li>
+        <li>Colle ses valeurs dans <code>js/firebase-config.js</code> (remplace les <code>"REMPLACE_MOI"</code>).</li>
+        <li>Menu de gauche → "Realtime Database" → "Créer une base de données" → mode test.</li>
+        <li>Republie/redéploie le site, puis recharge cette page.</li>
+      </ol>
+      <p class="muted">Détails complets dans le README du dossier.</p>
+    </div>
+  </section>
+
+  <!-- ===== Dashboard ===== -->
+  <section id="state-dashboard" class="hidden">
+    <header class="host-header">
+      <div>
+        <span class="eyebrow">Espace organisateur</span>
+        <h1 class="title-xl" style="font-size:clamp(30px,6vw,44px);text-align:left;">TOUTES LES ÉQUIPES</h1>
+      </div>
+      <span class="pill" id="count-pill">—</span>
+    </header>
+    <p class="muted">Tu vois tout en direct, sans être compté·e dans un groupe — c'est ta fête. Ajoute ou retire des invités ci-dessous : le site répartit automatiquement les couleurs de façon équilibrée.</p>
+
+    <!-- ===== Infos de la fête ===== -->
+    <div class="card">
+      <div class="host-header">
+        <span class="eyebrow">Infos de la fête</span>
+        <span class="pill" id="firebase-status">—</span>
+      </div>
+      <p class="muted">Ce que voient tes invités sur leur invitation. Enregistre pour que ça se mette à jour chez tout le monde.</p>
+
+      <form id="event-form" style="display:grid;gap:12px;margin-top:14px;">
+        <div class="info-grid">
+          <label class="info-item">
+            <div class="label">Ton prénom</div>
+            <input name="hostFirstName" placeholder="ex: Julien" />
+          </label>
+          <label class="info-item">
+            <div class="label">Titre de la soirée</div>
+            <input name="title" placeholder="ex: Color Party" />
+          </label>
+          <label class="info-item">
+            <div class="label">Date</div>
+            <input name="date" placeholder="ex: Samedi 12 septembre 2026" />
+          </label>
+          <label class="info-item">
+            <div class="label">Heure</div>
+            <input name="time" placeholder="ex: 20h00" />
+          </label>
+          <label class="info-item">
+            <div class="label">Lieu</div>
+            <input name="address" placeholder="ex: 12 rue de la Fête, Pau" />
+          </label>
+          <label class="info-item">
+            <div class="label">Précisions (interphone, parking...)</div>
+            <input name="addressNote" />
+          </label>
+        </div>
+
+        <label class="info-item">
+          <div class="label">Dress code</div>
+          <textarea name="dressCode" rows="2"></textarea>
+        </label>
+
+        <label class="info-item">
+          <div class="label">À savoir (facultatif — boissons, transport...)</div>
+          <textarea name="extraInfo" rows="2"></textarea>
+        </label>
+
+        <label class="info-item">
+          <div class="label">Message RSVP</div>
+          <textarea name="rsvpNote" rows="2"></textarea>
+        </label>
+
+        <div class="row">
+          <button type="submit" class="btn" id="save-event-btn">Enregistrer</button>
+          <span class="muted" id="save-status"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== Gestion des invités ===== -->
+    <div class="card">
+      <span class="eyebrow">Invités</span>
+      <h2 style="font-size:20px;margin-top:6px;">Ajouter quelqu'un</h2>
+      <form id="add-guest-form" class="add-guest-row" style="margin-top:10px;">
+        <input type="text" id="new-guest-name" placeholder="Prénom de l'invité·e" autocomplete="off" required />
+        <button type="submit" class="btn btn--sm">Ajouter</button>
+      </form>
+      <p class="muted" id="add-status" style="margin-top:6px;"></p>
+
+      <div class="row" style="margin-top:14px;">
+        <button class="btn btn--ghost btn--sm" id="import-btn">Importer la liste de départ (21 invités)</button>
+        <span class="muted" id="import-status"></span>
+      </div>
+
+      <div class="groups-grid" id="groups-grid" style="margin-top:18px;"></div>
+    </div>
+
+    <!-- ===== Liens à envoyer ===== -->
+    <div class="card">
+      <span class="eyebrow">Liens à envoyer</span>
+      <h2 style="font-size:18px;margin-top:6px;">Un lien personnel par invité·e</h2>
+      <p class="muted">Copie et envoie individuellement chaque lien à la personne correspondante. Chaque lien n'affiche que sa fête, sa couleur et son équipe.</p>
+
+      <table class="link-table">
+        <thead><tr><th>Invité·e</th><th>Équipe</th><th>Lien</th><th></th></tr></thead>
+        <tbody id="link-table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="footer-note">Cette page n'est utile qu'à toi — garde son lien pour toi seul·e.</p>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/store.js"></script>
+<script src="js/host.js"></script>
+</body>
+</html>
