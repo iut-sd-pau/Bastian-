@@ -1,22 +1,24 @@
 /* ============================================================
-   DATA.JS — configuration statique du site.
-   Les invités et les infos de la fête, eux, sont gérés en direct
-   depuis l'espace organisateur (host.html) et stockés dans Firebase
-   (voir js/firebase-config.js) — ce n'est plus ici qu'il faut les
-   modifier.
+   DATA.JS — configuration de démarrage.
+   Les couleurs, les invités et les infos de la fête sont ensuite
+   gérés en direct depuis l'espace organisateur (host.html) et
+   stockés dans Firebase — ce n'est qu'un point de départ, servant
+   aussi de valeurs par défaut si Firebase n'est pas encore configuré.
    ============================================================ */
 
-// ---------- Les 7 couleurs d'équipe ----------
-// L'ordre ici = l'ordre d'affichage partout sur le site.
-const COLORS = [
-  { key: "rouge", label: "Rouge", hex: "#c8465c" },
-  { key: "jaune", label: "Jaune", hex: "#dba847" },
-  { key: "vert", label: "Vert", hex: "#4f9e73" },
-  { key: "bleuciel", label: "Bleu ciel", hex: "#4a8fae" },
-  { key: "violet", label: "Violet", hex: "#8a63b0" },
-  { key: "orange", label: "Orange", hex: "#cf7a3c" },
-  { key: "rose", label: "Rose", hex: "#c96b93" },
-];
+// ---------- Couleurs d'équipe de départ ----------
+// L'anniversaireux peut en ajouter d'autres depuis l'espace
+// organisateur si le nombre d'invités grandit — ceci n'est que le
+// point de départ (importé une seule fois dans Firebase).
+const INITIAL_COLORS = {
+  rouge: { label: "Rouge", hex: "#c8465c", order: 0 },
+  jaune: { label: "Jaune", hex: "#dba847", order: 1 },
+  vert: { label: "Vert", hex: "#4f9e73", order: 2 },
+  bleuciel: { label: "Bleu ciel", hex: "#4a8fae", order: 3 },
+  violet: { label: "Violet", hex: "#8a63b0", order: 4 },
+  orange: { label: "Orange", hex: "#cf7a3c", order: 5 },
+  rose: { label: "Rose", hex: "#c96b93", order: 6 },
+};
 
 // ---------- Code d'accès de l'anniversaireux ----------
 // À garder secret, à donner uniquement à la personne fêtée.
@@ -43,4 +45,5 @@ const INITIAL_GUESTS = [
   "Moecha", "Ilan", "Mallaury", "Faïza", "Athalie", "Loïcia",
 ];
 
-window.PARTY_DATA = { COLORS, HOST_CODE, DEFAULT_EVENT, INITIAL_GUESTS };
+window.PARTY_DATA = { INITIAL_COLORS, HOST_CODE, DEFAULT_EVENT, INITIAL_GUESTS };
+

@@ -10,24 +10,6 @@
 
 <main class="page" id="page">
 
-  <!-- ===== État: code manquant / invalide ===== -->
-  <section id="state-invalid" class="hidden">
-    <div class="card center">
-      <span class="eyebrow">Lien invalide</span>
-      <h1 style="font-size:26px;margin-top:10px;">Ce lien ne correspond à aucune invitation</h1>
-      <p class="muted">Utilise le lien personnel qui t'a été envoyé pour cette soirée (il contient un code après <code>?c=</code>). En cas de doute, contacte l'organisateur·rice.</p>
-    </div>
-  </section>
-
-  <!-- ===== État: invité pas encore ajouté côté organisateur ===== -->
-  <section id="state-pending" class="hidden">
-    <div class="card center">
-      <span class="eyebrow">Presque</span>
-      <h1 style="font-size:26px;margin-top:10px;">Ton invitation n'est pas encore prête</h1>
-      <p class="muted">Vérifie le lien reçu, ou redemande-le à l'organisateur·rice si tu viens d'être ajouté·e — ça se met à jour automatiquement.</p>
-    </div>
-  </section>
-
   <!-- ===== Firebase non configuré ===== -->
   <section id="state-unconfigured" class="hidden">
     <div class="card card--warning center">
@@ -37,7 +19,38 @@
     </div>
   </section>
 
-  <!-- ===== État: invitation valide ===== -->
+  <!-- ===== État: identification (le lien est le même pour tout le monde) ===== -->
+  <section id="state-identify" class="hidden">
+    <div class="vinyl-wrap"><div class="vinyl"></div></div>
+    <header class="center" style="margin-bottom:2px;">
+      <span class="eyebrow">Tu es sur la liste</span>
+      <h1 class="title-xl" id="identify-title">COLOR PARTY</h1>
+      <p class="subtitle-script script" id="identify-host-line"></p>
+    </header>
+    <div class="card center">
+      <span class="eyebrow">C'est toi ?</span>
+      <h2 style="font-size:20px;margin-top:8px;">Indique ton prénom pour voir ton équipe</h2>
+      <form id="identify-form" style="margin-top:14px;display:flex;flex-direction:column;gap:12px;align-items:center;">
+        <input list="guest-names" id="identify-input" placeholder="Ton prénom" autocomplete="off" class="identify-input" />
+        <datalist id="guest-names"></datalist>
+        <button type="submit" class="btn">C'est moi !</button>
+      </form>
+      <p class="muted" id="identify-status" style="margin-top:10px;"></p>
+      <p class="muted" style="margin-top:14px;font-size:13px;">Ton prénom n'apparaît pas ? Demande à l'organisateur·rice de t'ajouter.</p>
+    </div>
+  </section>
+
+  <!-- ===== État: identité perdue (invité retiré entre-temps) ===== -->
+  <section id="state-pending" class="hidden">
+    <div class="card center">
+      <span class="eyebrow">Presque</span>
+      <h1 style="font-size:24px;margin-top:10px;">On ne te retrouve plus sur la liste</h1>
+      <p class="muted">Redemande à l'organisateur·rice, ou réessaie de t'identifier.</p>
+      <button class="btn btn--ghost" id="reidentify-btn" style="margin-top:14px;">M'identifier à nouveau</button>
+    </div>
+  </section>
+
+  <!-- ===== État: invitation ===== -->
   <section id="state-invite" class="hidden">
 
     <div class="vinyl-wrap"><div class="vinyl"></div></div>
@@ -85,6 +98,22 @@
         <div class="groups-grid" id="groups-grid"></div>
       </div>
     </div>
+
+    <!-- ===== Alcool ===== -->
+    <div class="card" id="drinks-card">
+      <span class="eyebrow">🍸 Un dernier truc</span>
+      <h2 style="font-size:18px;margin-top:6px;">Tu bois de l'alcool à cette soirée ?</h2>
+      <p class="muted">Ça aide l'organisateur·rice à prévoir les boissons. Modifiable à tout moment.</p>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn btn--choice" id="drinks-yes" data-value="true">Oui 🍸</button>
+        <button class="btn btn--choice" id="drinks-no" data-value="false">Non 🙅</button>
+      </div>
+      <p class="muted" id="drinks-status" style="margin-top:10px;"></p>
+    </div>
+
+    <p class="center">
+      <button class="btn btn--ghost btn--sm" id="change-identity-btn">Ce n'est pas moi, changer</button>
+    </p>
 
   </section>
 

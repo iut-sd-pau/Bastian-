@@ -248,6 +248,43 @@ a { color: var(--gold-2); }
 
 .btn--sm { padding: 8px 14px; font-size: 13px; }
 
+.btn--choice {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+.btn--choice:hover { border-color: var(--gold); }
+.btn--choice.is-selected {
+  background: linear-gradient(90deg, var(--gold), var(--amber));
+  color: #1a1410;
+  border-color: transparent;
+  box-shadow: 0 12px 28px -12px rgba(216, 169, 74, 0.55);
+}
+
+.identify-input {
+  width: 100%;
+  max-width: 320px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 12px 18px;
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
+.identify-input:focus { outline: none; border-color: var(--gold); }
+
+.color-input {
+  width: 46px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+  padding: 3px;
+}
+
 .btn--danger {
   background: transparent;
   border: 1px solid rgba(200, 70, 92, 0.5);

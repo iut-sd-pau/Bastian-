@@ -29,17 +29,17 @@ function slug(str) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function colorByKey(key) {
-  return window.PARTY_DATA.COLORS.find((c) => c.key === key) || null;
+function colorByKeyIn(colorsObj, key) {
+  return (colorsObj && colorsObj[key]) || null;
 }
 
 /* Ambiance "lumières de bar" : quelques halos flous qui dérivent
    lentement en fond, dans les tons chauds + couleurs d'équipe. */
 function mountAmbientLights(container, count = 9) {
-  const { COLORS } = window.PARTY_DATA;
+  const decorativeColors = Object.values(window.PARTY_DATA.INITIAL_COLORS).map((c) => c.hex);
   const field = document.createElement("div");
   field.className = "ambient-field";
-  const palette = ["#d8a94a", "#e07a3f", ...COLORS.map((c) => c.hex)];
+  const palette = ["#d8a94a", "#e07a3f", ...decorativeColors];
   for (let i = 0; i < count; i++) {
     const el = document.createElement("span");
     const color = palette[i % palette.length];

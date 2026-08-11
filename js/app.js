@@ -1,68 +1,122 @@
 (function () {
-  const { COLORS, HOST_CODE } = window.PARTY_DATA;
+  const IDENTITY_KEY = "colorparty_me";
 
   const pageEl = document.getElementById("page");
   mountAmbientLights(pageEl);
-
-  const code = getCodeFromURL();
-
-  if (code && code === HOST_CODE) {
-    window.location.replace(buildLink("host.html", code));
-    return;
-  }
 
   if (!isFirebaseConfigured()) {
     show("state-unconfigured");
     return;
   }
 
-  if (!code) {
-    show("state-invalid");
-    return;
-  }
-
-  let currentGuestsObj = {};
-  let rendered = false;
-
-  subscribeGuests((guestsObj) => {
-    currentGuestsObj = guestsObj;
-    const me = guestsObj[code];
-
-    if (!me) {
-      show("state-pending");
-      return;
-    }
-
-    show("state-invite");
-    if (!rendered) {
-      rendered = true;
-      document.getElementById("guest-name").textContent = me.name;
-      wireGroupsToggle();
-    }
-    renderReveal(me);
-    if (!document.getElementById("all-groups").classList.contains("hidden")) {
-      renderAllGroups();
-    }
-  });
+  let latestGuests = {};
+  let latestColors = {};
+  let identifiedCode = localStorage.getItem(IDENTITY_KEY) || null;
+  let inviteRendered = false;
 
   subscribeEvent((event) => {
-    document.getElementById("event-title").textContent = (event.title || "Color Party").toUpperCase();
-    document.getElementById("host-line").textContent = event.hostFirstName
-      ? `l'anniversaire de ${event.hostFirstName}`
-      : "";
+    const title = (event.title || "Color Party").toUpperCase();
+    const hostLine = event.hostFirstName ? `l'anniversaire de ${event.hostFirstName}` : "";
+    document.getElementById("event-title").textContent = title;
+    document.getElementById("host-line").textContent = hostLine;
+    document.getElementById("identify-title").textContent = title;
+    document.getElementById("identify-host-line").textContent = hostLine;
     fillEventInfo(document.getElementById("state-invite"), event);
   });
 
+  subscribeColors((colorsObj) => {
+    latestColors = colorsObj;
+    if (identifiedCode && latestGuests[identifiedCode]) renderInvite();
+  });
+
+  subscribeGuests((guestsObj) => {
+    latestGuests = guestsObj;
+    updateNameSuggestions(guestsObj);
+    resolveView();
+  });
+
+  function resolveView() {
+    if (identifiedCode && latestGuests[identifiedCode]) {
+      show("state-invite");
+      renderInvite();
+    } else if (identifiedCode && !latestGuests[identifiedCode]) {
+      show("state-pending");
+    } else {
+      show("state-identify");
+    }
+  }
+
+  function updateNameSuggestions(guestsObj) {
+    const list = document.getElementById("guest-names");
+    list.innerHTML = "";
+    Object.values(guestsObj)
+      .map((g) => g.name)
+      .sort((a, b) => a.localeCompare(b, "fr"))
+      .forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        list.appendChild(opt);
+      });
+  }
+
+  document.getElementById("identify-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("identify-input");
+    const status = document.getElementById("identify-status");
+    const name = input.value.trim();
+    if (!name) return;
+
+    const found = findGuestByName(latestGuests, name);
+    if (!found) {
+      status.textContent = "Prénom introuvable — vérifie l'orthographe, ou demande à être ajouté·e.";
+      return;
+    }
+    const [code] = found;
+    identifiedCode = code;
+    localStorage.setItem(IDENTITY_KEY, code);
+    status.textContent = "";
+    input.value = "";
+    resolveView();
+  });
+
+  document.getElementById("reidentify-btn").addEventListener("click", resetIdentity);
+  document.getElementById("change-identity-btn").addEventListener("click", resetIdentity);
+
+  function resetIdentity() {
+    identifiedCode = null;
+    localStorage.removeItem(IDENTITY_KEY);
+    resolveView();
+  }
+
+  function renderInvite() {
+    const me = latestGuests[identifiedCode];
+    if (!me) return;
+
+    if (!inviteRendered) {
+      inviteRendered = true;
+      document.getElementById("guest-name").textContent = me.name;
+      wireGroupsToggle();
+      wireDrinksButtons();
+    }
+
+    renderReveal(me);
+    updateDrinksUI(me);
+    if (!document.getElementById("all-groups").classList.contains("hidden")) {
+      renderAllGroups(me);
+    }
+  }
+
   function renderReveal(me) {
-    const color = colorByKey(me.colorKey);
+    const color = latestColors[me.colorKey];
     if (!color) return;
     const card = document.getElementById("reveal-card");
     card.style.setProperty("--accent", color.hex);
 
-    document.getElementById("reveal-color-name").textContent = color.label;
-    document.getElementById("reveal-color-name").style.color = color.hex;
+    const nameEl = document.getElementById("reveal-color-name");
+    nameEl.textContent = color.label;
+    nameEl.style.color = color.hex;
 
-    const teammates = Object.values(currentGuestsObj).filter((g) => g.colorKey === me.colorKey);
+    const teammates = Object.values(latestGuests).filter((g) => g.colorKey === me.colorKey);
     const list = document.getElementById("my-team-list");
     list.innerHTML = "";
     teammates.forEach((g) => {
@@ -81,16 +135,15 @@
       e.target.textContent = willShow
         ? "Cacher la composition des équipes"
         : "Voir la composition de toutes les équipes";
-      if (willShow) renderAllGroups();
+      if (willShow) renderAllGroups(latestGuests[identifiedCode]);
     });
   }
 
-  function renderAllGroups() {
+  function renderAllGroups(me) {
     const grid = document.getElementById("groups-grid");
     grid.innerHTML = "";
-    const me = currentGuestsObj[code];
-    COLORS.forEach((c) => {
-      const members = Object.values(currentGuestsObj).filter((g) => g.colorKey === c.key);
+    sortedColorEntries(latestColors).forEach(([key, c]) => {
+      const members = Object.values(latestGuests).filter((g) => g.colorKey === key);
       const card = document.createElement("div");
       card.className = "group-card";
       card.style.setProperty("--accent", c.hex);
@@ -103,6 +156,29 @@
       `;
       grid.appendChild(card);
     });
+  }
+
+  function wireDrinksButtons() {
+    document.getElementById("drinks-yes").addEventListener("click", () => saveDrinks(true));
+    document.getElementById("drinks-no").addEventListener("click", () => saveDrinks(false));
+  }
+
+  async function saveDrinks(value) {
+    const status = document.getElementById("drinks-status");
+    status.textContent = "Enregistrement...";
+    try {
+      await setDrinks(identifiedCode, value);
+      status.textContent = "✓ Enregistré, merci !";
+    } catch (err) {
+      status.textContent = "⚠ " + err.message;
+    }
+  }
+
+  function updateDrinksUI(me) {
+    const yesBtn = document.getElementById("drinks-yes");
+    const noBtn = document.getElementById("drinks-no");
+    yesBtn.classList.toggle("is-selected", me.drinks === true);
+    noBtn.classList.toggle("is-selected", me.drinks === false);
   }
 
   function show(id) {

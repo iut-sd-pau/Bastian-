@@ -1,5 +1,5 @@
 (function () {
-  const { COLORS, HOST_CODE } = window.PARTY_DATA;
+  const { HOST_CODE } = window.PARTY_DATA;
 
   const pageEl = document.getElementById("page");
   mountAmbientLights(pageEl);
@@ -19,34 +19,87 @@
   show("state-dashboard");
   document.getElementById("firebase-status").textContent = firebaseStatusLabel();
 
-  let currentGuestsObj = {};
+  const generalLink = new URL("index.html", window.location.href).toString();
+  document.getElementById("general-link").textContent = generalLink;
+  document.getElementById("copy-general-link").addEventListener("click", (e) => {
+    navigator.clipboard?.writeText(generalLink).then(() => {
+      const btn = e.target;
+      const original = btn.textContent;
+      btn.textContent = "Copié ✓";
+      setTimeout(() => (btn.textContent = original), 1500);
+    });
+  });
+
+  let latestGuests = {};
+  let latestColors = {};
+
+  seedColorsIfEmpty();
 
   setupEventForm();
   setupAddGuestForm();
   setupImportButton();
+  setupAddColorForm();
 
-  subscribeGuests((guestsObj) => {
-    currentGuestsObj = guestsObj;
-    const count = Object.keys(guestsObj).length;
-    document.getElementById("count-pill").textContent = `${count} invité${count > 1 ? "s" : ""} · 7 équipes`;
-    renderGroups(guestsObj);
-    renderLinkTable(guestsObj);
+  subscribeColors((colorsObj) => {
+    latestColors = colorsObj;
+    renderColors();
+    renderGroups();
   });
 
-  function renderGroups(guestsObj) {
+  subscribeGuests((guestsObj) => {
+    latestGuests = guestsObj;
+    const count = Object.keys(guestsObj).length;
+    document.getElementById("count-pill").textContent = `${count} invité${count > 1 ? "s" : ""}`;
+    renderGroups();
+    renderColors();
+    renderDrinksSummary();
+  });
+
+  function renderColors() {
+    const grid = document.getElementById("colors-grid");
+    grid.innerHTML = "";
+    const counts = countByColor(latestGuests, latestColors);
+    sortedColorEntries(latestColors).forEach(([key, c]) => {
+      const count = counts[key] || 0;
+      const card = document.createElement("div");
+      card.className = "group-card";
+      card.style.setProperty("--accent", c.hex);
+      card.innerHTML = `
+        <div class="row" style="justify-content:space-between;">
+          <span class="swatch" style="--dot:${c.hex}"><span class="swatch-dot"></span>${escapeHTML(c.label)} · ${count}</span>
+          ${count === 0 ? `<button class="btn--danger btn btn--sm remove-color-btn" data-key="${escapeHTML(key)}">Retirer</button>` : ""}
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    grid.querySelectorAll(".remove-color-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const key = btn.getAttribute("data-key");
+        if (!confirm("Retirer cette couleur d'équipe ?")) return;
+        try {
+          await removeColor(key);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+    });
+  }
+
+  function renderGroups() {
     const grid = document.getElementById("groups-grid");
     grid.innerHTML = "";
-    COLORS.forEach((c) => {
-      const entries = Object.entries(guestsObj).filter(([, g]) => g.colorKey === c.key);
+    sortedColorEntries(latestColors).forEach(([key, c]) => {
+      const entries = Object.entries(latestGuests).filter(([, g]) => g.colorKey === key);
       const card = document.createElement("div");
       card.className = "group-card";
       card.style.setProperty("--accent", c.hex);
       const membersHTML =
         entries
-          .map(
-            ([guestCode, g]) =>
-              `<li>${escapeHTML(g.name)}<button class="remove-x" data-code="${escapeHTML(guestCode)}" title="Retirer">✕</button></li>`
-          )
+          .map(([guestCode, g]) => {
+            const drinkIcon = g.drinks === true ? " 🍸" : g.drinks === false ? " 🙅" : "";
+            return `<li>${escapeHTML(g.name)}${drinkIcon}<button class="remove-x" data-code="${escapeHTML(guestCode)}" title="Retirer">✕</button></li>`;
+          })
           .join("") || `<li class="muted">Personne pour l'instant</li>`;
       card.innerHTML = `
         <span class="swatch" style="--dot:${c.hex}"><span class="swatch-dot"></span>${c.label} · ${entries.length}</span>
@@ -58,7 +111,7 @@
     grid.querySelectorAll(".remove-x").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const guestCode = btn.getAttribute("data-code");
-        const name = currentGuestsObj[guestCode]?.name || "cette personne";
+        const name = latestGuests[guestCode]?.name || "cette personne";
         if (!confirm(`Retirer ${name} de la liste ?`)) return;
         try {
           await removeGuest(guestCode);
@@ -69,34 +122,14 @@
     });
   }
 
-  function renderLinkTable(guestsObj) {
-    const tbody = document.getElementById("link-table-body");
-    tbody.innerHTML = "";
-    const entries = Object.entries(guestsObj).sort((a, b) => a[1].name.localeCompare(b[1].name, "fr"));
-
-    entries.forEach(([guestCode, g]) => {
-      const color = colorByKey(g.colorKey);
-      const link = buildLink("index.html", guestCode);
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHTML(g.name)}</td>
-        <td>${color ? `<span class="swatch" style="--dot:${color.hex}"><span class="swatch-dot"></span>${color.label}</span>` : "—"}</td>
-        <td class="link-cell">${escapeHTML(link)}</td>
-        <td><button class="copy-btn" data-link="${escapeHTML(link)}">Copier</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    tbody.querySelectorAll(".copy-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const link = btn.getAttribute("data-link");
-        navigator.clipboard?.writeText(link).then(() => {
-          const original = btn.textContent;
-          btn.textContent = "Copié ✓";
-          setTimeout(() => (btn.textContent = original), 1500);
-        });
-      });
-    });
+  function renderDrinksSummary() {
+    const all = Object.values(latestGuests);
+    const yes = all.filter((g) => g.drinks === true).length;
+    const no = all.filter((g) => g.drinks === false).length;
+    const pending = all.length - yes - no;
+    document.getElementById("drinks-summary").textContent = all.length
+      ? `🍸 ${yes} boivent · 🙅 ${no} ne boivent pas${pending ? ` · ❓ ${pending} pas encore répondu` : ""}`
+      : "";
   }
 
   function setupAddGuestForm() {
@@ -111,8 +144,8 @@
       status.textContent = "Ajout en cours...";
       try {
         const { colorKey } = await addGuest(name);
-        const color = colorByKey(colorKey);
-        status.textContent = `✓ ${name} ajouté·e — équipe ${color.label}.`;
+        const color = latestColors[colorKey];
+        status.textContent = `✓ ${name} ajouté·e — équipe ${color ? color.label : colorKey}.`;
         input.value = "";
         input.focus();
       } catch (err) {
@@ -134,6 +167,27 @@
         status.textContent = "⚠ " + err.message;
       } finally {
         btn.disabled = false;
+      }
+    });
+  }
+
+  function setupAddColorForm() {
+    const form = document.getElementById("add-color-form");
+    const labelInput = document.getElementById("new-color-label");
+    const hexInput = document.getElementById("new-color-hex");
+    const status = document.getElementById("add-color-status");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const label = labelInput.value.trim();
+      if (!label) return;
+      status.textContent = "Ajout en cours...";
+      try {
+        await addColor(label, hexInput.value);
+        status.textContent = `✓ Couleur "${label}" ajoutée.`;
+        labelInput.value = "";
+      } catch (err) {
+        status.textContent = "⚠ " + err.message;
       }
     });
   }

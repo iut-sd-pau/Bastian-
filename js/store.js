@@ -1,7 +1,5 @@
-/* Couche de données Firebase : infos de la fête + liste des invités.
-   Tout est en temps réel (on écoute les changements), pour que l'ajout
-   ou la suppression d'un invité par l'anniversaireux se reflète tout
-   de suite chez les invités qui ont leur page ouverte. */
+/* Couche de données Firebase : couleurs, infos de la fête, invités
+   (avec préférence alcool). Tout est en temps réel. */
 
 const DB_ROOT = "colorParty2026";
 
@@ -20,14 +18,12 @@ function ensureFirebase() {
   return true;
 }
 
-function eventRef() {
-  return firebase.database().ref(`${DB_ROOT}/event`);
-}
-function guestsRef() {
-  return firebase.database().ref(`${DB_ROOT}/guests`);
-}
+function eventRef() { return firebase.database().ref(`${DB_ROOT}/event`); }
+function guestsRef() { return firebase.database().ref(`${DB_ROOT}/guests`); }
+function colorsRef() { return firebase.database().ref(`${DB_ROOT}/colors`); }
 
-/** Écoute les infos de la fête en direct. callback(event) à chaque changement. */
+/* ---------------- Événement ---------------- */
+
 function subscribeEvent(callback) {
   const defaults = window.PARTY_DATA.DEFAULT_EVENT;
   if (!ensureFirebase()) {
@@ -45,8 +41,57 @@ async function saveEvent(data) {
   await eventRef().set(data);
 }
 
-/** Écoute la liste des invités en direct. callback(guestsObject) à chaque changement.
- *  guestsObject = { [code]: { name, colorKey } } */
+/* ---------------- Couleurs ---------------- */
+
+/** Si aucune couleur n'existe encore dans Firebase, y importe les 7 de départ. */
+async function seedColorsIfEmpty() {
+  if (!ensureFirebase()) return;
+  const snap = await colorsRef().get();
+  if (!snap.exists()) {
+    await colorsRef().set(window.PARTY_DATA.INITIAL_COLORS);
+  }
+}
+
+function subscribeColors(callback) {
+  if (!ensureFirebase()) {
+    callback({ ...window.PARTY_DATA.INITIAL_COLORS });
+    return () => {};
+  }
+  const ref = colorsRef();
+  const handler = (snap) => callback(snap.val() || {});
+  ref.on("value", handler);
+  return () => ref.off("value", handler);
+}
+
+function sortedColorEntries(colorsObj) {
+  return Object.entries(colorsObj || {}).sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0));
+}
+
+/** Ajoute une nouvelle couleur d'équipe (nom + hex), retourne sa clé. */
+async function addColor(label, hex) {
+  if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
+  const cleanLabel = String(label || "").trim();
+  if (!cleanLabel) throw new Error("Donne un nom à la couleur.");
+
+  const snap = await colorsRef().get();
+  const current = snap.val() || {};
+  let key = slug(cleanLabel) || "couleur";
+  let i = 2;
+  while (current[key]) key = `${slug(cleanLabel)}${i++}`;
+
+  const maxOrder = Object.values(current).reduce((m, c) => Math.max(m, c.order ?? 0), -1);
+  await colorsRef().child(key).set({ label: cleanLabel, hex: hex || "#c8a24a", order: maxOrder + 1 });
+  return key;
+}
+
+/** Supprime une couleur — l'appelant doit vérifier qu'elle n'a plus personne dedans. */
+async function removeColor(key) {
+  if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
+  await colorsRef().child(key).remove();
+}
+
+/* ---------------- Invités ---------------- */
+
 function subscribeGuests(callback) {
   if (!ensureFirebase()) {
     callback({});
@@ -58,23 +103,23 @@ function subscribeGuests(callback) {
   return () => ref.off("value", handler);
 }
 
-function countByColor(guestsObj) {
-  const { COLORS } = window.PARTY_DATA;
+function countByColor(guestsObj, colorsObj) {
   const counts = {};
-  COLORS.forEach((c) => (counts[c.key] = 0));
+  Object.keys(colorsObj || {}).forEach((key) => (counts[key] = 0));
   Object.values(guestsObj || {}).forEach((g) => {
     if (g && counts[g.colorKey] !== undefined) counts[g.colorKey]++;
   });
   return counts;
 }
 
-/** Choisit la couleur la moins remplie (aléatoire entre les couleurs à égalité). */
-function pickBalancedColor(guestsObj) {
-  const { COLORS } = window.PARTY_DATA;
-  const counts = countByColor(guestsObj);
-  const min = Math.min(...COLORS.map((c) => counts[c.key]));
-  const candidates = COLORS.filter((c) => counts[c.key] === min);
-  return candidates[Math.floor(Math.random() * candidates.length)].key;
+/** Choisit la couleur la moins remplie parmi les couleurs existantes (aléatoire si égalité). */
+function pickBalancedColor(guestsObj, colorsObj) {
+  const keys = Object.keys(colorsObj || {});
+  if (keys.length === 0) throw new Error("Aucune couleur d'équipe n'existe encore.");
+  const counts = countByColor(guestsObj, colorsObj);
+  const min = Math.min(...keys.map((k) => counts[k]));
+  const candidates = keys.filter((k) => counts[k] === min);
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
 function makeGuestCode(name, existingCodes) {
@@ -92,19 +137,33 @@ async function addGuest(name) {
   const cleanName = String(name || "").trim();
   if (!cleanName) throw new Error("Le nom ne peut pas être vide.");
 
-  const snap = await guestsRef().get();
-  const current = snap.val() || {};
-  const existingCodes = new Set(Object.keys(current));
+  const [guestsSnap, colorsSnap] = await Promise.all([guestsRef().get(), colorsRef().get()]);
+  const currentGuests = guestsSnap.val() || {};
+  const currentColors = colorsSnap.val() || {};
+  const existingCodes = new Set(Object.keys(currentGuests));
   const code = makeGuestCode(cleanName, existingCodes);
-  const colorKey = pickBalancedColor(current);
+  const colorKey = pickBalancedColor(currentGuests, currentColors);
 
-  await guestsRef().child(code).set({ name: cleanName, colorKey });
+  await guestsRef().child(code).set({ name: cleanName, colorKey, drinks: null });
   return { code, colorKey };
 }
 
 async function removeGuest(code) {
   if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
   await guestsRef().child(code).remove();
+}
+
+/** Enregistre la réponse à la question alcool pour un invité (true / false). */
+async function setDrinks(code, drinks) {
+  if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
+  await guestsRef().child(code).update({ drinks });
+}
+
+/** Cherche un invité par prénom exact (insensible à la casse/accents). Retourne [code, guest] ou null. */
+function findGuestByName(guestsObj, name) {
+  const target = slug(name);
+  const entry = Object.entries(guestsObj || {}).find(([, g]) => slug(g.name) === target);
+  return entry || null;
 }
 
 /** Importe en une fois les invités de INITIAL_GUESTS qui ne sont pas déjà présents (par nom). */
