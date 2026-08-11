@@ -18,8 +18,8 @@
    synchronisent chez eux.
    ============================================================ */
 window.FIREBASE_CONFIG = {
-  apiKey: "REMPLACE_MOI",
-  authDomain: "REMPLACE_MOI",
-  databaseURL: "REMPLACE_MOI",
-  projectId: "REMPLACE_MOI",
+  apiKey: "AIzaSyB8Y3NLh5QZX3jMbFsxa-rQPQgENSHvkq0",
+  authDomain: "bastianparty-61689.firebaseapp.com",
+  databaseURL: "https://bastianparty-61689-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "bastianparty-61689",
 };
