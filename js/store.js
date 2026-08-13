@@ -131,8 +131,9 @@ function makeGuestCode(name, existingCodes) {
   return code;
 }
 
-/** Ajoute un invité, lui attribue automatiquement la couleur la moins remplie. */
-async function addGuest(name) {
+/** Ajoute un invité. Si forcedColorKey est fourni, l'utilise directement ;
+ *  sinon attribue automatiquement la couleur la moins remplie. */
+async function addGuest(name, forcedColorKey) {
   if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
   const cleanName = String(name || "").trim();
   if (!cleanName) throw new Error("Le nom ne peut pas être vide.");
@@ -142,7 +143,10 @@ async function addGuest(name) {
   const currentColors = colorsSnap.val() || {};
   const existingCodes = new Set(Object.keys(currentGuests));
   const code = makeGuestCode(cleanName, existingCodes);
-  const colorKey = pickBalancedColor(currentGuests, currentColors);
+  const colorKey =
+    forcedColorKey && currentColors[forcedColorKey]
+      ? forcedColorKey
+      : pickBalancedColor(currentGuests, currentColors);
 
   await guestsRef().child(code).set({ name: cleanName, colorKey, drinks: null });
   return { code, colorKey };
@@ -151,6 +155,12 @@ async function addGuest(name) {
 async function removeGuest(code) {
   if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
   await guestsRef().child(code).remove();
+}
+
+/** Change manuellement la couleur d'équipe d'un invité déjà ajouté. */
+async function setGuestColor(code, colorKey) {
+  if (!ensureFirebase()) throw new Error("Firebase non configuré (js/firebase-config.js).");
+  await guestsRef().child(code).update({ colorKey });
 }
 
 /** Enregistre la réponse à la question alcool pour un invité (true / false). */

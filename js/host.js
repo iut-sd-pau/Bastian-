@@ -44,6 +44,7 @@
     latestColors = colorsObj;
     renderColors();
     renderGroups();
+    renderAddGuestColorOptions();
   });
 
   subscribeGuests((guestsObj) => {
@@ -99,7 +100,13 @@
         entries
           .map(([guestCode, g]) => {
             const drinkIcon = g.drinks === true ? " 🍸" : g.drinks === false ? " 🙅" : "";
-            return `<li>${escapeHTML(g.name)}${drinkIcon}<button class="remove-x" data-code="${escapeHTML(guestCode)}" title="Retirer">✕</button></li>`;
+            const options = sortedColorEntries(latestColors)
+              .map(([k, col]) => `<option value="${escapeHTML(k)}"${k === g.colorKey ? " selected" : ""}>${escapeHTML(col.label)}</option>`)
+              .join("");
+            return `<li>${escapeHTML(g.name)}${drinkIcon}
+              <select class="reassign-select" data-code="${escapeHTML(guestCode)}" title="Changer d'équipe">${options}</select>
+              <button class="remove-x" data-code="${escapeHTML(guestCode)}" title="Retirer">✕</button>
+            </li>`;
           })
           .join("") || `<li class="muted">Personne pour l'instant</li>`;
       card.innerHTML = `
@@ -107,6 +114,17 @@
         <ul class="group-list" style="margin-top:10px;">${membersHTML}</ul>
       `;
       grid.appendChild(card);
+    });
+
+    grid.querySelectorAll(".reassign-select").forEach((sel) => {
+      sel.addEventListener("change", async () => {
+        const guestCode = sel.getAttribute("data-code");
+        try {
+          await setGuestColor(guestCode, sel.value);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
     });
 
     grid.querySelectorAll(".remove-x").forEach((btn) => {
@@ -158,9 +176,23 @@
     });
   }
 
+  function renderAddGuestColorOptions() {
+    const select = document.getElementById("new-guest-color");
+    const previousValue = select.value;
+    select.innerHTML = `<option value="">Automatique (équilibré)</option>`;
+    sortedColorEntries(latestColors).forEach(([key, c]) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = c.label;
+      select.appendChild(opt);
+    });
+    if ([...select.options].some((o) => o.value === previousValue)) select.value = previousValue;
+  }
+
   function setupAddGuestForm() {
     const form = document.getElementById("add-guest-form");
     const input = document.getElementById("new-guest-name");
+    const colorSelect = document.getElementById("new-guest-color");
     const status = document.getElementById("add-status");
 
     form.addEventListener("submit", async (e) => {
@@ -169,10 +201,11 @@
       if (!name) return;
       status.textContent = "Ajout en cours...";
       try {
-        const { colorKey } = await addGuest(name);
+        const { colorKey } = await addGuest(name, colorSelect.value || undefined);
         const color = latestColors[colorKey];
         status.textContent = `✓ ${name} ajouté·e — équipe ${color ? color.label : colorKey}.`;
         input.value = "";
+        colorSelect.value = "";
         input.focus();
       } catch (err) {
         status.textContent = "⚠ " + err.message;
