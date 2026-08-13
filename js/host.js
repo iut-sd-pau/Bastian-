@@ -53,6 +53,7 @@
     renderGroups();
     renderColors();
     renderDrinksSummary();
+    renderDrinksLists();
   });
 
   function renderColors() {
@@ -129,7 +130,32 @@
     const pending = all.length - yes - no;
     document.getElementById("drinks-summary").textContent = all.length
       ? `🍸 ${yes} boivent · 🙅 ${no} ne boivent pas${pending ? ` · ❓ ${pending} pas encore répondu` : ""}`
-      : "";
+      : "Aucun invité pour l'instant.";
+  }
+
+  function renderDrinksLists() {
+    const entries = Object.values(latestGuests).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    const groups = [
+      { title: "Boivent", accent: "#4f9e73", items: entries.filter((g) => g.drinks === true) },
+      { title: "Ne boivent pas", accent: "#c8465c", items: entries.filter((g) => g.drinks === false) },
+      { title: "Pas encore répondu", accent: "#6b6072", items: entries.filter((g) => g.drinks !== true && g.drinks !== false) },
+    ];
+
+    const grid = document.getElementById("drinks-lists");
+    grid.innerHTML = "";
+    groups.forEach((group) => {
+      const card = document.createElement("div");
+      card.className = "group-card";
+      card.style.setProperty("--accent", group.accent);
+      const itemsHTML =
+        group.items.map((g) => `<li>${escapeHTML(g.name)}</li>`).join("") ||
+        `<li class="muted">Personne</li>`;
+      card.innerHTML = `
+        <h3>${group.title} · ${group.items.length}</h3>
+        <ul class="group-list">${itemsHTML}</ul>
+      `;
+      grid.appendChild(card);
+    });
   }
 
   function setupAddGuestForm() {
